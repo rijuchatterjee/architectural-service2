@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: pr-environments
+  name: pr-environments-{REPO_NAME}
   namespace: argocd
 spec:
   generators:
