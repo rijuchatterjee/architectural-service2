@@ -21,7 +21,8 @@ spec:
     spec:
       project: default
       source:
-        repoURL: 'https://x-access-token:${{ secrets.TOKEN }}@github.com/rijuchatterjee/{REPO_NAME}.git'
+        repoURL: https://github.com/rijuchatterjee/{REPO_NAME}.git
+        # repoURL: 'https://x-access-token:${{ secrets.TOKEN }}@github.com/rijuchatterjee/{REPO_NAME}.git'
         targetRevision: '{{head_sha}}'
         path: helm-chart/
         helm:
