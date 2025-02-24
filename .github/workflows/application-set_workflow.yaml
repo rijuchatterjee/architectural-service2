@@ -1,0 +1,62 @@
+name: Deploy to ArgoCD
+
+on:
+  pull_request:
+    types:
+      - opened
+
+permissions:
+  contents: write    # Add this to grant write permissions
+  pull-requests: write
+        
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Environment Variables
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_NAMESPACE=${{ github.event.repository.name }}-pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+
+      - name: Replace Values in manifests
+        run: |
+          sed -i '' "s/{REPO_NAME}/${{ github.event.repository.name }}/g" applicationset.yaml
+          sed -i '' "s/{REPO_NAME}-pr-{{number}}/$PR_NAMESPACE/g" applicationset.yaml
+          cat applicationset.yaml
+
+      - name: Commit and Push Changes
+        continue-on-error: true 
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Configure pull strategy
+          git config pull.rebase false
+          
+          # Add and commit changes
+          git add applicationset.yaml
+          git commit -m "Update manifests dynamically for $PR_NAMESPACE" || echo "No changes to commit"
+          
+          # Pull and merge remote changes
+          git pull origin ${{ github.head_ref }}
+          
+          # Push changes
+          git push origin HEAD:${{ github.head_ref }}
+
+      - name: Create Namespace in Kubernetes
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+        run: |
+          kubectl create namespace $PR_NAMESPACE || echo "Namespace already exists"
+
+      - name: Apply Manifests to ArgoCD
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+        run: |
+          kubectl apply -f applicationset.yaml
