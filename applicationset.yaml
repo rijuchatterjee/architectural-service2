@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: pr-environments
+  namespace: argocd
+spec:
+  generators:
+    - pullRequest:
+        github:
+          api: https://api.github.com/
+          owner: rijuchatterjee
+          repo: {REPO_NAME}
+          tokenRef:
+            secretName: github-token
+            key: token
+          labels:
+            - preview
+  template:
+    metadata:
+      name: '{REPO_NAME}-pr-{{number}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://x-access-token:${{ secrets.TOKEN }}@github.com/rijuchatterjee/{REPO_NAME}.git'
+        targetRevision: '{{head_sha}}'
+        path: helm-chart/
+        helm:
+          parameters:
+            - name: "image.repository"
+              value: nginx
+            - name: "image.tag"
+              value: "latest"
+      destination:
+        name: in-cluster
+        namespace: '{REPO_NAME}-pr-{{number}}'
+      syncPolicy:
+        automated:
+          selfHeal: true
